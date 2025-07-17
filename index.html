@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird - Gesture Control Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: #4dc1f9;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: none;
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 200px;
+            height: 150px;
+            border: 4px solid #fff;
+            border-radius: 8px;
+        }
+
+        .powerup-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .menu-button {
+            transition: all 0.3s ease;
+        }
+
+        .menu-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #4dc1f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .controls-guide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="text-white text-2xl animate-pulse">Loading Game...</div>
+    </div>
+
+    <div class="menu-screen h-screen w-screen flex flex-col items-center justify-center space-y-8" id="menuScreen">
+        <img src="https://firebasestorage.googleapis.com/v0/b/widecanvas-d0dd4.appspot.com/o/logos%2Fflappybird%20interface.jpg?alt=media&token=dbeaaaf9-1df0-47f6-b1dc-97e71f2f5cba" 
+             alt="Flappy Bird Logo" 
+             class="w-64 md:w-96 mb-8 animate-bounce">
+        
+        <div class="flex flex-col space-y-4">
+            <button onclick="startSinglePlayer()" 
+                    class="menu-button bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-full text-xl">
+                Single Player
+            </button>
+            <button onclick="startMultiPlayer()" 
+                    class="menu-button bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-full text-xl">
+                Multiplayer
+            </button>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <video autoplay="true" id="videoElement"></video>
+        <div class="powerup-indicator">
+            <div class="text-sm">Shield: <span id="shieldStatus">Inactive</span></div>
+            <div class="text-sm">Level: <span id="currentLevel">1</span></div>
+            <div class="text-sm">Score: <span id="score">0</span></div>
+        </div>
+        <div class="controls-guide">
+            <p class="text-sm mb-2">🖐️ Raise hand to move up</p>
+            <p class="text-sm mb-2">😊 Smile to activate shield</p>
+            <p class="text-sm">👁️ Blink to use power-up</p>
+        </div>
+    </div>
+
+    <script>
+        let gameActive = false;
+        let currentScore = 0;
+        let currentLevel = 1;
+
+        function startSinglePlayer() {
+            document.getElementById('menuScreen').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            initializeGame('single');
+        }
+
+        function startMultiPlayer() {
+            document.getElementById('menuScreen').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            initializeGame('multi');
+        }
+
+        function initializeGame(mode) {
+            // Initialize Three.js scene
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({
+                canvas: document.querySelector('#gameCanvas'),
+                antialias: true
+            });
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Start video capture
+            if (navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function (stream) {
+                        document.getElementById('videoElement').srcObject = stream;
+                    })
+                    .catch(function (error) {
+                        console.log("Video capture error: ", error);
+                    });
+            }
+
+            // Initialize game objects
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const bird = new THREE.Mesh(geometry, material);
+            scene.add(bird);
+
+            camera.position.z = 5;
+
+            // Game loop
+            function animate() {
+                requestAnimationFrame(animate);
+                if (gameActive) {
+                    bird.rotation.x += 0.01;
+                    bird.rotation.y += 0.01;
+                }
+                renderer.render(scene, camera);
+            }
+
+            // Start game loop
+            gameActive = true;
+            animate();
+
+            // Hide loading screen
+            document.getElementById('loadingScreen').style.display = 'none';
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({
+                canvas: document.querySelector('#gameCanvas'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize the game
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 2000);
+        });
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
